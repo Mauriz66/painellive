@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import PainelFinanceiro from './PainelFinanceiro';
+import PainelFinanceiro from './components/PainelFinanceiro';
 import './index.css';
 
 const root = ReactDOM.createRoot(
