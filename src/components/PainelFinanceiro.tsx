@@ -96,47 +96,54 @@ const PainelFinanceiro = () => {
     perguntasLive: 1,
     perguntasPrivadas: 0
   });
-  const [mensagem, setMensagem] = useState('');
+  const [erro, setErro] = useState<string>('');
 
   // Efeito para carregar e processar os dados do Excel
   useEffect(() => {
     const carregarDados = async () => {
       try {
         setCarregando(true);
-        const response = await window.fs.readFile('Controle Live 2025 2.xlsx');
+        setErro('');
+        
+        // Carregar o arquivo Excel da pasta pública
+        const response = await fetch('/data/Controle Live 2025 2.xlsx');
+        const arrayBuffer = await response.arrayBuffer();
         
         // Processar o arquivo Excel
-        const workbook = XLSX.read(response, {
-          cellStyles: true,
-          cellFormula: true, // Corrigido de cellFormulas para cellFormula
+        const workbook = XLSX.read(new Uint8Array(arrayBuffer), {
+          type: 'array',
           cellDates: true,
           cellNF: true,
-          sheetStubs: true
+          cellStyles: true
         });
         
         // Processar a planilha de registros
         const registroSheet = workbook.Sheets["Registro 2025"];
+        if (!registroSheet) {
+          throw new Error("Planilha 'Registro 2025' não encontrada");
+        }
+
         let registroData = XLSX.utils.sheet_to_json<RegistroRow>(registroSheet);
         
         // Filtrar registros válidos
         registroData = registroData.filter(row => {
           return row["Dia que ocorreu a live"] && row["Mes"] && row[" Valor"];
         });
+
+        if (registroData.length === 0) {
+          throw new Error("Nenhum dado válido encontrado na planilha");
+        }
         
-        // Processar dados por mês
+        // Processar dados
         processarDadosPorMes(registroData);
-        
-        // Processar dados por dia
         processarDadosPorDia(registroData);
-        
-        // Calcular estatísticas gerais
         calcularEstatisticasGerais(registroData);
         
         setCarregando(false);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
         setCarregando(false);
-        setMensagem("Erro ao carregar os dados. Verifique o console para mais detalhes.");
+        setErro(error instanceof Error ? error.message : "Erro ao carregar os dados");
       }
     };
     
@@ -325,14 +332,14 @@ const PainelFinanceiro = () => {
   const adicionarNovoRegistro = () => {
     // Validar dados
     if (!novoRegistro.data || !novoRegistro.mes || !novoRegistro.valor) {
-      setMensagem("Por favor, preencha todos os campos obrigatórios.");
+      setErro("Por favor, preencha todos os campos obrigatórios.");
       return;
     }
     
     // Aqui seria o código para realmente adicionar o registro ao arquivo Excel
     // Como não podemos modificar o arquivo, apenas simulamos a adição
     
-    setMensagem("Registro adicionado com sucesso! (Simulação - o arquivo real não foi modificado)");
+    setErro("Registro adicionado com sucesso! (Simulação - o arquivo real não foi modificado)");
     
     // Limpar o formulário
     setNovoRegistro({
@@ -345,7 +352,7 @@ const PainelFinanceiro = () => {
     });
     
     // Atualizar as estatísticas (simulação)
-    setTimeout(() => setMensagem(""), 3000);
+    setTimeout(() => setErro(""), 3000);
   };
   
   // Função para formatar valores monetários
@@ -449,9 +456,9 @@ const PainelFinanceiro = () => {
         <h2 className="text-xl font-bold mb-4">Adicionar Novo Registro</h2>
         
         <div className="bg-white p-6 rounded-lg shadow">
-          {mensagem && (
-            <div className={`p-3 mb-4 rounded ${mensagem.includes("sucesso") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-              {mensagem}
+          {erro && (
+            <div className={`p-3 mb-4 rounded ${erro.includes("sucesso") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {erro}
             </div>
           )}
           
@@ -727,54 +734,67 @@ const PainelFinanceiro = () => {
     );
   };
 
+  // Componente de mensagem de erro
+  const MensagemErro = () => {
+    if (!erro) return null;
+    return (
+      <div className="message message-error">
+        <p className="font-medium">Erro ao carregar dados:</p>
+        <p>{erro}</p>
+      </div>
+    );
+  };
+
+  // Componente de loading
+  const Loading = () => (
+    <div className="flex justify-center items-center h-64">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+      <p className="ml-4 text-lg text-gray-600">Carregando dados...</p>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Cabeçalho e Navegação */}
-      <header className="bg-white shadow">
-        <div className="mx-auto px-4 py-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Painel Financeiro de Lives</h1>
-          <div className="flex space-x-4">
-            <button 
-              onClick={() => setTabAtiva('dashboard')}
-              className={`px-4 py-2 rounded ${tabAtiva === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Dashboard
-            </button>
-            <button 
-              onClick={() => setTabAtiva('relatorios')}
-              className={`px-4 py-2 rounded ${tabAtiva === 'relatorios' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Relatórios
-            </button>
-            <button 
-              onClick={() => setTabAtiva('adicionar')}
-              className={`px-4 py-2 rounded ${tabAtiva === 'adicionar' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Adicionar Registro
-            </button>
+      <header className="bg-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-900">Painel Financeiro de Lives</h1>
+            <div className="flex space-x-4">
+              <button 
+                onClick={() => setTabAtiva('dashboard')}
+                className={`btn ${tabAtiva === 'dashboard' ? 'btn-primary' : 'bg-gray-200 hover:bg-gray-300'}`}
+              >
+                Dashboard
+              </button>
+              <button 
+                onClick={() => setTabAtiva('relatorios')}
+                className={`btn ${tabAtiva === 'relatorios' ? 'btn-primary' : 'bg-gray-200 hover:bg-gray-300'}`}
+              >
+                Relatórios
+              </button>
+            </div>
           </div>
         </div>
       </header>
       
       {/* Conteúdo Principal */}
-      <main className="mx-auto py-6 px-4">
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <MensagemErro />
+        
         {carregando ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="ml-4 text-lg">Carregando dados...</p>
-          </div>
+          <Loading />
         ) : (
           <>
             {tabAtiva === 'dashboard' && <Dashboard />}
             {tabAtiva === 'relatorios' && <Relatorios />}
-            {tabAtiva === 'adicionar' && <AdicionarRegistro />}
           </>
         )}
       </main>
       
       {/* Rodapé */}
-      <footer className="bg-white shadow-inner py-4 mt-8">
-        <div className="mx-auto px-4 text-center text-gray-600">
+      <footer className="bg-white shadow-inner mt-auto py-4">
+        <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
           <p>© {new Date().getFullYear()} Painel Financeiro de Lives</p>
         </div>
       </footer>
