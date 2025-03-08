@@ -146,32 +146,60 @@ const PainelFinanceiro = () => {
         
         // Carregar o arquivo Excel da pasta pública
         const response = await fetch('/data/Controle Live 2025 2.xlsx');
+        if (!response.ok) {
+          throw new Error(`Erro ao carregar o arquivo Excel: ${response.statusText}`);
+        }
+
         const arrayBuffer = await response.arrayBuffer();
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+          throw new Error('Arquivo Excel vazio ou inválido');
+        }
         
         // Processar o arquivo Excel
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), {
           type: 'array',
           cellDates: true,
-          cellNF: true,
-          cellStyles: true
+          cellNF: false,
+          cellText: false
         });
+
+        // Verificar se a planilha existe
+        if (!workbook.SheetNames.includes("Registro 2025")) {
+          throw new Error("Planilha 'Registro 2025' não encontrada no arquivo");
+        }
         
         // Processar a planilha de registros
         const registroSheet = workbook.Sheets["Registro 2025"];
-        if (!registroSheet) {
-          throw new Error("Planilha 'Registro 2025' não encontrada");
-        }
-
-        let registroData = XLSX.utils.sheet_to_json<RegistroRow>(registroSheet);
+        let registroData = XLSX.utils.sheet_to_json<RegistroRow>(registroSheet, {
+          raw: false,
+          dateNF: 'yyyy-mm-dd'
+        });
         
-        // Filtrar registros válidos
+        // Filtrar e validar registros
         registroData = registroData.filter(row => {
-          return row["Dia que ocorreu a live"] && row["Mes"] && row[" Valor"];
+          const isValid = 
+            row["Dia que ocorreu a live"] && 
+            row["Mes"] && 
+            typeof row[" Valor"] !== 'undefined' &&
+            !isNaN(parseFloat(String(row[" Valor"])));
+          
+          if (!isValid) {
+            console.warn('Registro inválido encontrado:', row);
+          }
+          return isValid;
         });
 
         if (registroData.length === 0) {
           throw new Error("Nenhum dado válido encontrado na planilha");
         }
+
+        // Normalizar os dados
+        registroData = registroData.map(row => ({
+          ...row,
+          " Valor": parseFloat(String(row[" Valor"])),
+          "Numero de perguntas enviadas por cliente na live": parseInt(String(row["Numero de perguntas enviadas por cliente na live"])) || 0,
+          "Numero de perguntas privadas enviadas por clientes na live": parseInt(String(row["Numero de perguntas privadas enviadas por clientes na live"])) || 0
+        }));
         
         // Processar dados
         processarDadosPorMes(registroData);
@@ -182,7 +210,7 @@ const PainelFinanceiro = () => {
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
         setCarregando(false);
-        setErro(error instanceof Error ? error.message : "Erro ao carregar os dados");
+        setErro(error instanceof Error ? error.message : "Erro ao carregar os dados do Excel");
       }
     };
     
@@ -621,40 +649,53 @@ const PainelFinanceiro = () => {
     
     return (
       <div className="p-4">
-        <div className="mb-4">
-          <label className="mr-2 font-medium">Filtrar por período:</label>
-          <select 
-            value={periodoSelecionado}
-            onChange={(e) => setPeriodoSelecionado(e.target.value)}
-            className="p-2 border rounded"
-          >
-            <option value="todos">Todos os dados</option>
-            <option value="7dias">Últimos 7 dias</option>
-            <option value="30dias">Últimos 30 dias</option>
-            <option value="90dias">Últimos 90 dias</option>
-          </select>
+        <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center">
+              <label className="text-gray-700 font-medium mr-3">Filtrar por período:</label>
+              <select 
+                value={periodoSelecionado}
+                onChange={(e) => setPeriodoSelecionado(e.target.value)}
+                className="min-w-[200px] p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-sm"
+              >
+                <option value="todos">Todos os dados</option>
+                <option value="7dias">Últimos 7 dias</option>
+                <option value="30dias">Últimos 30 dias</option>
+                <option value="90dias">Últimos 90 dias</option>
+              </select>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <span className="mr-2">Período atual:</span>
+              <span className="font-medium">
+                {periodoSelecionado === 'todos' 
+                  ? 'Todos os registros'
+                  : `Últimos ${periodoSelecionado.replace('dias', ' dias')}`
+                }
+              </span>
+            </div>
+          </div>
         </div>
         
         {/* Cards com KPIs principais */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-700">Valor Bruto</h3>
-            <p className="text-2xl font-bold text-blue-600">{formatarValor(totalValorPeriodo)}</p>
+          <div className="stat-card">
+            <h3 className="stat-title">Valor Bruto</h3>
+            <p className="stat-value text-primary">{formatarValor(totalValorPeriodo)}</p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-700">Valor Líquido</h3>
-            <p className="text-2xl font-bold text-green-600">{formatarValor(valorLiquidoPeriodo)}</p>
+          <div className="stat-card">
+            <h3 className="stat-title">Valor Líquido</h3>
+            <p className="stat-value text-secondary">{formatarValor(valorLiquidoPeriodo)}</p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-700">Total de Perguntas</h3>
-            <p className="text-2xl font-bold text-purple-600">{totalPerguntasPeriodo}</p>
+          <div className="stat-card">
+            <h3 className="stat-title">Total de Perguntas</h3>
+            <p className="stat-value text-accent">{totalPerguntasPeriodo}</p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-700">Dias de Live</h3>
-            <p className="text-2xl font-bold text-orange-600">{dadosFiltrados.length}</p>
+          <div className="stat-card">
+            <h3 className="stat-title">Dias de Live</h3>
+            <p className="stat-value text-warning">{dadosFiltrados.length}</p>
           </div>
         </div>
         
@@ -834,21 +875,29 @@ const PainelFinanceiro = () => {
     );
   };
 
-  // Componente de mensagem de erro
+  // Componente de mensagem de erro melhorado
   const MensagemErro = () => {
     if (!erro) return null;
     return (
-      <div className="message message-error">
-        <p className="font-medium">Erro ao carregar dados:</p>
-        <p>{erro}</p>
+      <div className="error-message mb-4">
+        <div className="flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+          </svg>
+          <div>
+            <p className="font-bold">Erro ao carregar dados:</p>
+            <p>{erro}</p>
+            <p className="text-sm mt-1">Por favor, verifique se o arquivo Excel está na pasta correta e tente novamente.</p>
+          </div>
+        </div>
       </div>
     );
   };
 
-  // Componente de loading
+  // Componente de loading melhorado
   const Loading = () => (
-    <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+    <div className="loading">
+      <div className="loading-spinner"></div>
       <p className="ml-4 text-lg text-gray-600">Carregando dados...</p>
     </div>
   );
@@ -858,18 +907,26 @@ const PainelFinanceiro = () => {
       {/* Cabeçalho e Navegação */}
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <h1 className="text-3xl font-bold text-gray-900">Painel Financeiro de Lives</h1>
             <div className="flex space-x-4">
               <button 
                 onClick={() => setTabAtiva('dashboard')}
-                className={`btn ${tabAtiva === 'dashboard' ? 'btn-primary' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  tabAtiva === 'dashboard' 
+                    ? 'bg-primary text-white shadow-lg' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
               >
                 Dashboard
               </button>
               <button 
                 onClick={() => setTabAtiva('relatorios')}
-                className={`btn ${tabAtiva === 'relatorios' ? 'btn-primary' : 'bg-gray-200 hover:bg-gray-300'}`}
+                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  tabAtiva === 'relatorios' 
+                    ? 'bg-primary text-white shadow-lg' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
               >
                 Relatórios
               </button>
@@ -880,15 +937,15 @@ const PainelFinanceiro = () => {
       
       {/* Conteúdo Principal */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <MensagemErro />
+        {erro && <MensagemErro />}
         
         {carregando ? (
           <Loading />
         ) : (
-          <>
+          <div className="space-y-6">
             {tabAtiva === 'dashboard' && <Dashboard />}
             {tabAtiva === 'relatorios' && <Relatorios />}
-          </>
+          </div>
         )}
       </main>
       
