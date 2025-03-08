@@ -80,6 +80,45 @@ interface NovoRegistro {
 // Cores temáticas para gráficos
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+// Configurações comuns para os gráficos
+const chartConfig = {
+  style: {
+    background: '#fff',
+    borderRadius: '0.5rem',
+    padding: '1rem',
+  },
+};
+
+// Cores personalizadas para os gráficos
+const CHART_COLORS = {
+  primary: '#0088FE',
+  secondary: '#00C49F',
+  accent: '#FFBB28',
+  warning: '#FF8042',
+  success: '#4CAF50',
+  info: '#2196F3',
+};
+
+// Configuração do tooltip personalizado
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+        <p className="text-gray-600">{`Data: ${label}`}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} style={{ color: entry.color }} className="font-medium">
+            {`${entry.name}: ${entry.value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            })}`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const PainelFinanceiro = () => {
   // Estados para armazenar dados e controlar funcionalidades
   const [dadosPorMes, setDadosPorMes] = useState<MetricaPorMes[]>([]);
@@ -622,40 +661,81 @@ const PainelFinanceiro = () => {
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Gráfico de Tendência de Valores por Dia */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Tendência de Valores por Dia</h3>
+          <div className="chart-container">
+            <h3 className="chart-title">Tendência de Valores por Dia</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={dadosFiltrados}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="data" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatarValor(value as number)} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis 
+                  dataKey="data" 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                />
+                <YAxis 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                  tickFormatter={(value) => formatarValor(value)}
+                />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Line type="monotone" dataKey="totalValor" name="Valor Bruto" stroke="#0088FE" />
-                <Line type="monotone" dataKey="valorLiquido" name="Valor Líquido" stroke="#00C49F" />
+                <Line 
+                  type="monotone" 
+                  dataKey="totalValor" 
+                  name="Valor Bruto" 
+                  stroke={CHART_COLORS.primary}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.primary }}
+                  activeDot={{ r: 8 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="valorLiquido" 
+                  name="Valor Líquido" 
+                  stroke={CHART_COLORS.secondary}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.secondary }}
+                  activeDot={{ r: 8 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
           
           {/* Gráfico de Perguntas por Dia */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Perguntas por Dia</h3>
+          <div className="chart-container">
+            <h3 className="chart-title">Perguntas por Dia</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dadosFiltrados}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="data" />
-                <YAxis />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis 
+                  dataKey="data" 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                />
+                <YAxis 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar dataKey="totalPerguntasLive" name="Perguntas Live" fill="#8884d8" />
-                <Bar dataKey="totalPerguntasPrivadas" name="Perguntas Privadas" fill="#82ca9d" />
+                <Bar 
+                  dataKey="totalPerguntasLive" 
+                  name="Perguntas Live" 
+                  fill={CHART_COLORS.accent}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar 
+                  dataKey="totalPerguntasPrivadas" 
+                  name="Perguntas Privadas" 
+                  fill={CHART_COLORS.warning}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
           
           {/* Gráfico de Distribuição Valor Líquido vs Comissão */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Distribuição Valor Líquido vs Comissão</h3>
+          <div className="chart-container">
+            <h3 className="chart-title">Distribuição Valor Líquido vs Comissão</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -663,32 +743,52 @@ const PainelFinanceiro = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  outerRadius={80}
+                  outerRadius={100}
+                  innerRadius={60}
                   fill="#8884d8"
                   dataKey="value"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
                 >
                   {dadosDistribuicao.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={index === 0 ? CHART_COLORS.success : CHART_COLORS.warning}
+                    />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatarValor(value as number)} />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
           
           {/* Gráfico de Valor Médio por Cliente */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Valor Médio por Cliente por Dia</h3>
+          <div className="chart-container">
+            <h3 className="chart-title">Valor Médio por Cliente por Dia</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={dadosFiltrados}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="data" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatarValor(value as number)} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                <XAxis 
+                  dataKey="data" 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                />
+                <YAxis 
+                  tick={{ fill: '#666' }}
+                  tickLine={{ stroke: '#666' }}
+                  tickFormatter={(value) => formatarValor(value)}
+                />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Line type="monotone" dataKey="valorMedioPorCliente" name="Valor Médio por Cliente" stroke="#FF8042" />
+                <Line 
+                  type="monotone" 
+                  dataKey="valorMedioPorCliente" 
+                  name="Valor Médio por Cliente" 
+                  stroke={CHART_COLORS.info}
+                  strokeWidth={2}
+                  dot={{ fill: CHART_COLORS.info }}
+                  activeDot={{ r: 8 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
