@@ -2,6 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary/90;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-200;
+  }
+  
+  .input {
+    @apply w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+  
+  .table-header {
+    @apply py-3 px-4 text-left font-semibold text-gray-700 bg-gray-50;
+  }
+  
+  .table-cell {
+    @apply py-3 px-4 border-b border-gray-200;
+  }
+  
+  .chart-container {
+    @apply bg-white p-6 rounded-lg shadow-lg mb-6;
+  }
+  
+  .chart-title {
+    @apply text-lg font-semibold mb-4 text-gray-800;
+  }
+  
+  .stat-card {
+    @apply bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200;
+  }
+  
+  .stat-title {
+    @apply text-sm font-medium text-gray-600 mb-1;
+  }
+  
+  .stat-value {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  
+  .loading {
+    @apply flex items-center justify-center p-8;
+  }
+  
+  .loading-spinner {
+    @apply w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin;
+  }
+  
+  .error-message {
+    @apply bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative;
+  }
+  
+  .success-message {
+    @apply bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative;
+  }
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,7 +77,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  @apply bg-gray-100;
 }
 
 code {
@@ -27,10 +94,6 @@ code {
 }
 
 /* Estilos para os cards */
-.stat-card {
-  @apply bg-white p-6 rounded-lg shadow-lg transition-transform duration-200 hover:transform hover:scale-105;
-}
-
 .stat-card h3 {
   @apply text-lg font-semibold text-gray-700 mb-2;
 }
@@ -54,24 +117,6 @@ th {
 
 td {
   @apply py-3 px-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-200;
-}
-
-/* Estilos para os botões */
-.btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
-}
-
-.btn-primary {
-  @apply bg-primary text-white hover:bg-blue-700;
-}
-
-.btn-secondary {
-  @apply bg-secondary text-white hover:bg-green-700;
-}
-
-/* Estilos para os inputs */
-.input {
-  @apply w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent;
 }
 
 /* Estilos para os selects */
